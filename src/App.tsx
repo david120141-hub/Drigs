@@ -271,9 +271,15 @@ function AuthScreen({ onSignIn }: { onSignIn: (email: string, password: string) 
         </p>
 
         <div className="mt-8 p-4 rounded-xl bg-surface-800/50 border border-surface-700/50 text-xs text-surface-500">
-          <p className="font-medium text-surface-300 mb-2">Configuração Necessária</p>
-          <p>Configure as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env para conectar ao Supabase.</p>
-        </div>
+                  <p className="font-medium text-surface-300 mb-2">
+                    {supabaseService.getClient() ? 'Supabase Conectado' : 'Modo Demo'}
+                  </p>
+                  <p className="text-surface-500">
+                    {supabaseService.getClient() 
+                      ? 'Crie uma conta ou entre com suas credenciais. Se for o primeiro acesso, use "Cadastrar" para criar o primeiro usuário admin.'
+                      : 'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel/Arquivo .env para ativar persistência de dados.'}
+                  </p>
+                </div>
       </div>
     </div>
   );
