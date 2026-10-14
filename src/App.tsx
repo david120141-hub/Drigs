@@ -140,8 +140,8 @@ export function App() {
   }
 
   if (!isAuthenticated) {
-    return <AuthScreen onSignIn={handleSignIn} />;
-  }
+      return <AuthScreen />;
+    }
 
   return (
     <div className="min-h-screen bg-surface-950">
@@ -186,7 +186,8 @@ export function App() {
   );
 }
 
-function AuthScreen({ onSignIn }: { onSignIn: (email: string, password: string) => Promise<void> }) {
+function AuthScreen() {
+  const { signIn, signUp, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -199,12 +200,14 @@ function AuthScreen({ onSignIn }: { onSignIn: (email: string, password: string) 
     setLoading(true);
     try {
       if (isSignUp) {
-        // TODO: Implement sign up
+        const result = await signUp(email, password);
+        if (result.error) throw new Error(result.error.message);
       } else {
-        await onSignIn(email, password);
+        const result = await signIn(email, password);
+        if (result.error) throw new Error(result.error.message);
       }
     } catch (err) {
-      setError('Credenciais inválidas');
+      setError(err instanceof Error ? err.message : 'Credenciais inválidas');
     }
     setLoading(false);
   };
@@ -283,11 +286,6 @@ function AuthScreen({ onSignIn }: { onSignIn: (email: string, password: string) 
       </div>
     </div>
   );
-}
-
-function handleSignIn(email: string, password: string): Promise<void> {
-  // This will be handled by the auth hook
-  return Promise.resolve();
 }
 
 App.displayName = 'App';
