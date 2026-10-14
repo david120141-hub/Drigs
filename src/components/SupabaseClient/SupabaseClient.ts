@@ -29,34 +29,46 @@ export class SupabaseService {
   currentSession: Session | null = null;
 
   constructor() {
-      if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-        this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true,
-          },
-          db: {
-            schema: 'public',
-          },
-          realtime: {
-            params: {
-              eventsPerSecond: 10,
-            },
-          },
-        });
-        this.setupAuthListener();
-        this.setupNetworkListeners();
-        this.startSyncLoop();
-      } else {
-        // No Supabase config - emit initial auth state to avoid infinite loading
+        console.log('[SupabaseService] Initializing...', { hasUrl: !!SUPABASE_URL, hasKey: !!SUPABASE_ANON_KEY });
+      
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+          try {
+            this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+              auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true,
+              },
+              db: {
+                schema: 'public',
+              },
+              realtime: {
+                params: {
+                  eventsPerSecond: 10,
+                },
+              },
+            });
+            this.setupAuthListener();
+            this.setupNetworkListeners();
+            this.startSyncLoop();
+            console.log('[SupabaseService] Client initialized successfully');
+          } catch (error) {
+            console.error('[SupabaseService] Failed to initialize client:', error);
+            this.emitAuthFallback();
+          }
+        } else {
+          console.warn('[SupabaseService] No Supabase config - using demo mode');
+          this.emitAuthFallback();
+        }
+      }
+
+      private emitAuthFallback(): void {
         this.currentUser = null;
         this.currentSession = null;
         setTimeout(() => {
           this.emit('authChange', { event: 'INITIAL_SESSION', session: null, user: null });
         }, 0);
       }
-    }
 
   private setupAuthListener(): void {
     if (!this.client) return;

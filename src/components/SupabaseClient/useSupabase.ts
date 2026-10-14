@@ -19,14 +19,35 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = supabaseService.on('authChange', ((data: unknown) => {
+    let mounted = true;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const handleAuthChange = ((data: unknown) => {
+      if (!mounted) return;
+      clearTimeout(timeoutId);
       const { user: u, session: s } = data as { user: any; session: any };
       setUser(u as UserType | null);
       setSession(s);
       setLoading(false);
-    }) as (data: unknown) => void);
+    }) as (data: unknown) => void;
 
-    return unsubscribe;
+    const unsubscribe = supabaseService.on('authChange', handleAuthChange);
+
+    // Fallback timeout - prevent infinite loading
+    timeoutId = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('[useAuth] Auth timeout - falling back to unauthenticated state');
+        setUser(null);
+        setSession(null);
+        setLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
