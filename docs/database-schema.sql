@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- CORE TABLES
 -- ============================================
 
--- Stores (Farmácias)
+-- Stores (Pharmacies)
 CREATE TABLE stores (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE stores (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Users (Usuários do sistema)
+-- Users (System Users)
 CREATE TABLE users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Products (Produtos farmacêuticos)
+-- Products (Pharmaceutical Products)
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -74,7 +74,7 @@ CREATE TABLE products (
     UNIQUE(store_id, gtin)
 );
 
--- Inventory Sessions (Sessões de balanço)
+-- Inventory Sessions (Balance Sessions)
 CREATE TABLE inventory_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
@@ -102,7 +102,7 @@ CREATE TABLE inventory_sessions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Scanned Items (Itens escaneados na sessão)
+-- Scanned Items (Items Scanned in Session)
 CREATE TABLE scanned_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id UUID NOT NULL REFERENCES inventory_sessions(id) ON DELETE CASCADE,
@@ -130,7 +130,7 @@ CREATE TABLE scanned_items (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Divergence Logs (Logs de divergência)
+-- Divergence Logs (Divergence Logs)
 CREATE TABLE divergence_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id UUID NOT NULL REFERENCES inventory_sessions(id) ON DELETE CASCADE,
@@ -150,7 +150,7 @@ CREATE TABLE divergence_logs (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Expiry Alerts (Alertas de validade)
+-- Expiry Alerts (Expiry Alerts)
 CREATE TABLE expiry_alerts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id UUID NOT NULL REFERENCES inventory_sessions(id) ON DELETE CASCADE,
@@ -353,8 +353,8 @@ ALTER PUBLICATION supabase_realtime ADD TABLE expiry_alerts;
 -- ============================================
 
 -- INSERT INTO stores (name, cnpj, address) VALUES
--- ('Farmácia Central', '12.345.678/0001-90', '{"street": "Rua Principal", "number": "100", "neighborhood": "Centro", "city": "São Paulo", "state": "SP", "zipCode": "01000-000", "country": "Brasil"}');
+-- ('Central Pharmacy', '12.345.678/0001-90', '{"street": "Main St", "number": "100", "neighborhood": "Downtown", "city": "Sao Paulo", "state": "SP", "zipCode": "01000-000", "country": "Brazil"}');
 
 -- INSERT INTO products (store_id, gtin, name, manufacturer, unit, price, cost) VALUES
--- ((SELECT id FROM stores WHERE cnpj = '12.345.678/0001-90'), '7896004701234', 'Dipirona 500mg', 'Medley', 'CX', 12.50, 8.00),
--- ((SELECT id FROM stores WHERE cnpj = '12.345.678/0001-90'), '7891058000123', 'Paracetamol 750mg', 'EMS', 'CX', 15.90, 10.50);
+-- ((SELECT id FROM stores WHERE cnpj = '12.345.678/0001-90'), '7896004701234', 'Dipyrone 500mg', 'Medley', 'BX', 12.50, 8.00),
+-- ((SELECT id FROM stores WHERE cnpj = '12.345.678/0001-90'), '7891058000123', 'Paracetamol 750mg', 'EMS', 'BX', 15.90, 10.50);
