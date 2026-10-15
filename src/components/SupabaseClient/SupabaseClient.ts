@@ -15,20 +15,31 @@ import type {
 } from '../../types';
 import { generateId, retry, isOnline, onOnline, onOffline } from '@utils/helpers';
 
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '');
 const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
 // Validate URL format
 function validateSupabaseUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+    return parsed.protocol === 'https:' && 
+           parsed.hostname.endsWith('.supabase.co') &&
+           parsed.pathname === '/' &&
+           parsed.search === '' &&
+           parsed.hash === '';
   } catch {
     return false;
   }
 }
 
 const isValidConfig = SUPABASE_URL && SUPABASE_ANON_KEY && validateSupabaseUrl(SUPABASE_URL);
+
+console.log('[SupabaseService] Config:', { 
+  url: SUPABASE_URL ? 'SET' : 'MISSING', 
+  key: SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
+  isValidConfig,
+  urlValue: SUPABASE_URL
+});
 
 export class SupabaseService {
   private client: SupabaseClient | null = null;
@@ -158,28 +169,40 @@ export class SupabaseService {
   }
 
   async signIn(email: string, password: string): Promise<APIResponse<{ user: User; session: Session }>> {
-    if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
+      if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
 
-    try {
-      const { data, error } = await this.client.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      return { data: { user: data.user, session: data.session } as any, error: null };
-    } catch (error) {
-      return { data: null, error: { code: 'AUTH_ERROR', message: error instanceof Error ? error.message : 'Erro de autenticação' } };
+      try {
+        console.log('[SupabaseService] signIn attempt:', { email });
+        const { data, error } = await this.client.auth.signInWithPassword({ email, password });
+        if (error) {
+          console.error('[SupabaseService] signIn error:', error);
+          throw error;
+        }
+        console.log('[SupabaseService] signIn success:', { userId: data.user?.id });
+        return { data: { user: data.user, session: data.session } as any, error: null };
+      } catch (error) {
+        console.error('[SupabaseService] signIn catch:', error);
+        return { data: null, error: { code: 'AUTH_ERROR', message: error instanceof Error ? error.message : 'Erro de autenticação' } };
+      }
     }
-  }
 
-  async signUp(email: string, password: string, metadata?: Record<string, unknown>): Promise<APIResponse<{ user: User; session: Session }>> {
-    if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
+    async signUp(email: string, password: string, metadata?: Record<string, unknown>): Promise<APIResponse<{ user: User; session: Session }>> {
+      if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
 
-    try {
-      const { data, error } = await this.client.auth.signUp({ email, password, options: { data: metadata } });
-      if (error) throw error;
-      return { data: { user: data.user, session: data.session } as any, error: null };
-    } catch (error) {
-      return { data: null, error: { code: 'AUTH_ERROR', message: error instanceof Error ? error.message : 'Erro no cadastro' } };
+      try {
+        console.log('[SupabaseService] signUp attempt:', { email });
+        const { data, error } = await this.client.auth.signUp({ email, password, options: { data: metadata } });
+        if (error) {
+          console.error('[SupabaseService] signUp error:', error);
+          throw error;
+        }
+        console.log('[SupabaseService] signUp success:', { userId: data.user?.id });
+        return { data: { user: data.user, session: data.session } as any, error: null };
+      } catch (error) {
+        console.error('[SupabaseService] signUp catch:', error);
+        return { data: null, error: { code: 'AUTH_ERROR', message: error instanceof Error ? error.message : 'Erro no cadastro' } };
+      }
     }
-  }
 
   async signOut(): Promise<APIResponse<void>> {
     if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
