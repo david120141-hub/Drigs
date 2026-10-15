@@ -98,12 +98,27 @@ function Sidebar({ stores, activeStoreId, onStoreSelect, onNewStore }: {
 
 export function App() {
   const { user, session, loading: authLoading, signOut, isAuthenticated } = useAuth();
-  const { stores, loading: storesLoading, fetch: fetchStores } = useStores();
+  const { stores, loading: storesLoading, fetch: fetchStores, create: createStore } = useStores();
   const { status: syncStatus } = useSyncStatus();
   const { online } = useNetworkStatus();
 
   const [activeStore, setActiveStore] = useState<Store | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showStoreModal, setShowStoreModal] = useState(false);
+  const [storeForm, setStoreForm] = useState({
+    name: '',
+    cnpj: '',
+    street: '',
+    number: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phone: '',
+    email: '',
+  });
+  const [storeFormError, setStoreFormError] = useState('');
+  const [storeFormLoading, setStoreFormLoading] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -124,9 +139,67 @@ export function App() {
   }, [stores]);
 
   const handleNewStore = useCallback(() => {
-    // TODO: Implement new store modal
-    console.log('New store requested');
+    setStoreForm({
+      name: '',
+      cnpj: '',
+      street: '',
+      number: '',
+      neighborhood: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      phone: '',
+      email: '',
+    });
+    setStoreFormError('');
+    setShowStoreModal(true);
   }, []);
+
+  const handleStoreSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStoreFormError('');
+    setStoreFormLoading(true);
+
+    const address = {
+      street: storeForm.street,
+      number: storeForm.number,
+      complement: '',
+      neighborhood: storeForm.neighborhood,
+      city: storeForm.city,
+      state: storeForm.state,
+      zipCode: storeForm.zipCode,
+      country: 'Brasil',
+    };
+
+    const result = await createStore({
+      name: storeForm.name,
+      cnpj: storeForm.cnpj,
+      address,
+      phone: storeForm.phone,
+      email: storeForm.email,
+      timezone: 'America/Sao_Paulo',
+      settings: {
+        defaultExpiryAlertDays: 90,
+        autoSyncEnabled: true,
+        requirePhotoEvidence: false,
+        allowedScanModes: ['continuous', 'matrix'],
+        maxSessionDuration: 28800,
+      },
+      isActive: true,
+    });
+
+    if (result.error) {
+      setStoreFormError(result.error.message);
+      setStoreFormLoading(false);
+    } else if (result.data) {
+      setShowStoreModal(false);
+      setActiveStore(result.data);
+    }
+  };
+
+  const handleStoreInputChange = (field: string, value: string) => {
+    setStoreForm(prev => ({ ...prev, [field]: value }));
+  };
 
   if (authLoading) {
     return (
@@ -140,8 +213,8 @@ export function App() {
   }
 
   if (!isAuthenticated) {
-      return <AuthScreen />;
-    }
+    return <AuthScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-surface-950">
@@ -182,6 +255,180 @@ export function App() {
           </main>
         </div>
       </div>
+
+      {showStoreModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowStoreModal(false)}>
+          <div className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">Nova Loja</h2>
+                <button onClick={() => setShowStoreModal(false)} className="p-2 rounded-lg hover:bg-surface-800 text-surface-400 hover:text-surface-100">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleStoreSubmit} className="space-y-4">
+                {storeFormError && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    {storeFormError}
+                  </div>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="label">Nome da Loja *</label>
+                    <input
+                      type="text"
+                      value={storeForm.name}
+                      onChange={e => handleStoreInputChange('name', e.target.value)}
+                      className="input"
+                      placeholder="Ex: Farmácia Central"
+                      required
+                      disabled={storeFormLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">CNPJ *</label>
+                    <input
+                      type="text"
+                      value={storeForm.cnpj}
+                      onChange={e => handleStoreInputChange('cnpj', e.target.value)}
+                      className="input"
+                      placeholder="00.000.000/0000-00"
+                      required
+                      disabled={storeFormLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="label">Telefone</label>
+                    <input
+                      type="tel"
+                      value={storeForm.phone}
+                      onChange={e => handleStoreInputChange('phone', e.target.value)}
+                      className="input"
+                      placeholder="(11) 99999-9999"
+                      disabled={storeFormLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Email</label>
+                    <input
+                      type="email"
+                      value={storeForm.email}
+                      onChange={e => handleStoreInputChange('email', e.target.value)}
+                      className="input"
+                      placeholder="contato@farmacia.com"
+                      disabled={storeFormLoading}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Endereço</label>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div>
+                      <label className="label">Rua *</label>
+                      <input
+                        type="text"
+                        value={storeForm.street}
+                        onChange={e => handleStoreInputChange('street', e.target.value)}
+                        className="input"
+                        placeholder="Rua Principal"
+                        required
+                        disabled={storeFormLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Número *</label>
+                      <input
+                        type="text"
+                        value={storeForm.number}
+                        onChange={e => handleStoreInputChange('number', e.target.value)}
+                        className="input"
+                        placeholder="100"
+                        required
+                        disabled={storeFormLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Bairro *</label>
+                      <input
+                        type="text"
+                        value={storeForm.neighborhood}
+                        onChange={e => handleStoreInputChange('neighborhood', e.target.value)}
+                        className="input"
+                        placeholder="Centro"
+                        required
+                        disabled={storeFormLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Cidade *</label>
+                      <input
+                        type="text"
+                        value={storeForm.city}
+                        onChange={e => handleStoreInputChange('city', e.target.value)}
+                        className="input"
+                        placeholder="São Paulo"
+                        required
+                        disabled={storeFormLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Estado *</label>
+                      <input
+                        type="text"
+                        value={storeForm.state}
+                        onChange={e => handleStoreInputChange('state', e.target.value)}
+                        className="input"
+                        placeholder="SP"
+                        required
+                        disabled={storeFormLoading}
+                        maxLength={2}
+                      />
+                    </div>
+                    <div>
+                      <label className="label">CEP *</label>
+                      <input
+                        type="text"
+                        value={storeForm.zipCode}
+                        onChange={e => handleStoreInputChange('zipCode', e.target.value)}
+                        className="input"
+                        placeholder="00000-000"
+                        required
+                        disabled={storeFormLoading}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-surface-700">
+                  <button
+                    type="button"
+                    onClick={() => setShowStoreModal(false)}
+                    className="btn-secondary flex-1"
+                    disabled={storeFormLoading}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary flex-1"
+                    disabled={storeFormLoading}
+                  >
+                    {storeFormLoading ? 'Criando...' : 'Criar Loja'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -274,15 +521,15 @@ function AuthScreen() {
         </p>
 
         <div className="mt-8 p-4 rounded-xl bg-surface-800/50 border border-surface-700/50 text-xs text-surface-500">
-                  <p className="font-medium text-surface-300 mb-2">
-                    {supabaseService.getClient() ? 'Supabase Conectado' : 'Modo Demo'}
-                  </p>
-                  <p className="text-surface-500">
-                    {supabaseService.getClient() 
-                      ? 'Crie uma conta ou entre com suas credenciais. Se for o primeiro acesso, use "Cadastrar" para criar o primeiro usuário admin.'
-                      : 'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel/Arquivo .env para ativar persistência de dados.'}
-                  </p>
-                </div>
+          <p className="font-medium text-surface-300 mb-2">
+            {supabaseService.getClient() ? 'Supabase Conectado' : 'Modo Demo'}
+          </p>
+          <p className="text-surface-500">
+            {supabaseService.getClient()
+              ? 'Crie uma conta ou entre com suas credenciais. Se for o primeiro acesso, use "Cadastrar" para criar o primeiro usuário admin.'
+              : 'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel/Arquivo .env para ativar persistência de dados.'}
+          </p>
+        </div>
       </div>
     </div>
   );

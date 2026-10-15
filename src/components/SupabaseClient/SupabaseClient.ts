@@ -519,22 +519,74 @@ export class SupabaseService {
   }
 
   async getStores(userId: string): Promise<APIResponse<Store[]>> {
-    if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
+      if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
 
-    try {
-      const { data, error } = await this.client
-        .from('stores')
-        .select('*')
-        .contains('user_ids', [userId])
-        .eq('is_active', true)
-        .order('name');
+      try {
+        const { data, error } = await this.client
+          .from('stores')
+          .select('*')
+          .contains('user_ids', [userId])
+          .eq('is_active', true)
+          .order('name');
 
-      if (error) throw error;
-      return { data: data as Store[], error: null };
-    } catch (error) {
-      return { data: null, error: { code: 'QUERY_ERROR', message: error instanceof Error ? error.message : 'Erro ao buscar lojas' } };
+        if (error) throw error;
+        return { data: data as Store[], error: null };
+      } catch (error) {
+        return { data: null, error: { code: 'QUERY_ERROR', message: error instanceof Error ? error.message : 'Erro ao buscar lojas' } };
+      }
     }
-  }
+
+    async createStore(store: Omit<Store, 'id' | 'createdAt' | 'updatedAt'> & { user_id: string }): Promise<APIResponse<Store>> {
+      if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
+
+      try {
+        const now = new Date().toISOString();
+        const storeId = generateId('store');
+        const storeData = {
+          ...store,
+          id: storeId,
+          user_ids: [store.user_id],
+          created_at: now,
+          updated_at: now,
+        };
+
+        const { data, error } = await this.client
+          .from('stores')
+          .insert(storeData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Also add store_id to user's store_ids array
+        await this.client
+          .from('users')
+          .update({ store_ids: [storeId] })
+          .eq('id', store.user_id);
+
+        return { data: data as Store, error: null };
+      } catch (error) {
+        return { data: null, error: { code: 'MUTATION_ERROR', message: error instanceof Error ? error.message : 'Erro ao criar loja' } };
+      }
+    }
+
+    async updateStore(id: string, updates: Partial<Store>): Promise<APIResponse<Store>> {
+      if (!this.client) return { data: null, error: { code: 'NOT_INITIALIZED', message: 'Supabase não configurado' } };
+
+      try {
+        const { data, error } = await this.client
+          .from('stores')
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return { data: data as Store, error: null };
+      } catch (error) {
+        return { data: null, error: { code: 'MUTATION_ERROR', message: error instanceof Error ? error.message : 'Erro ao atualizar loja' } };
+      }
+    }
 
   async getSyncStatus(): Promise<SyncStatus> {
     return { ...this.syncStatus };

@@ -299,7 +299,18 @@ export function useStores() {
     fetch();
   }, [fetch]);
 
-  return { stores, loading, error, fetch };
+  const create = useCallback(async (store: Omit<Store, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const user = supabaseService.getCurrentUser();
+    if (!user) return { data: null, error: { code: 'NOT_AUTHENTICATED', message: 'Usuário não autenticado' } };
+    
+    const result = await supabaseService.createStore({ ...store, user_id: user.id });
+    if (!result.error && result.data) {
+      setStores(prev => [...prev, result.data!]);
+    }
+    return result;
+  }, []);
+
+  return { stores, loading, error, fetch, create };
 }
 
 export function useSyncStatus() {
