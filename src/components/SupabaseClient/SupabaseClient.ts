@@ -136,7 +136,7 @@ export class SupabaseService {
     }, 30000);
   }
 
-  private emit(event: string, data: unknown): void {
+  public emit(event: string, data: unknown): void {
     this.listeners.get(event)?.forEach(cb => cb(data));
   }
 

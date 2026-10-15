@@ -20,11 +20,9 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
-    let timeoutId: ReturnType<typeof setTimeout>;
 
     const handleAuthChange = ((data: unknown) => {
       if (!mounted) return;
-      clearTimeout(timeoutId);
       const { user: u, session: s } = data as { user: any; session: any };
       setUser(u as UserType | null);
       setSession(s);
@@ -33,36 +31,46 @@ export function useAuth() {
 
     const unsubscribe = supabaseService.on('authChange', handleAuthChange);
 
-    // Fallback timeout - prevent infinite loading
-    timeoutId = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('[useAuth] Auth timeout - falling back to unauthenticated state');
-        setUser(null);
-        setSession(null);
-        setLoading(false);
-      }
-    }, 5000);
-
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
       unsubscribe();
     };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    return supabaseService.signIn(email, password);
+    const result = await supabaseService.signIn(email, password);
+    // Emit authChange immediately for instant UI update
+    if (!result.error && result.data) {
+      supabaseService.emit('authChange', { 
+        user: result.data.user, 
+        session: result.data.session 
+      });
+    }
+    return result;
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, unknown>) => {
-    return supabaseService.signUp(email, password, metadata);
+    const result = await supabaseService.signUp(email, password, metadata);
+    // Emit authChange immediately for instant UI update
+    if (!result.error && result.data) {
+      supabaseService.emit('authChange', { 
+        user: result.data.user, 
+        session: result.data.session 
+      });
+    }
+    return result;
   }, []);
 
   const signOut = useCallback(async () => {
-    return supabaseService.signOut();
+    const result = await supabaseService.signOut();
+    if (!result.error) {
+      supabaseService.emit('authChange', { user: null, session: null });
+    }
+    return result;
   }, []);
 
   return { user, session, loading, signIn, signUp, signOut, isAuthenticated: !!user };
+
 }
 
 export function useProducts(storeId: string, options?: { search?: string; limit?: number; offset?: number }) {
