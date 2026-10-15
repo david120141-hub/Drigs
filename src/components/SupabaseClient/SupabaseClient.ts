@@ -15,8 +15,20 @@ import type {
 } from '../../types';
 import { generateId, retry, isOnline, onOnline, onOffline } from '@utils/helpers';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+
+// Validate URL format
+function validateSupabaseUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+  } catch {
+    return false;
+  }
+}
+
+const isValidConfig = SUPABASE_URL && SUPABASE_ANON_KEY && validateSupabaseUrl(SUPABASE_URL);
 
 export class SupabaseService {
   private client: SupabaseClient | null = null;
@@ -29,32 +41,32 @@ export class SupabaseService {
   currentSession: Session | null = null;
 
   constructor() {
-        console.log('[SupabaseService] Initializing...', { hasUrl: !!SUPABASE_URL, hasKey: !!SUPABASE_ANON_KEY });
-      
-        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-          try {
-            this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-              auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-                detectSessionInUrl: true,
-              },
-              db: {
-                schema: 'public',
-              },
-              realtime: {
-                params: {
-                  eventsPerSecond: 10,
+          console.log('[SupabaseService] Initializing...', { hasUrl: !!SUPABASE_URL, hasKey: !!SUPABASE_ANON_KEY, isValidConfig });
+     
+          if (isValidConfig) {
+            try {
+              this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                  persistSession: true,
+                  autoRefreshToken: true,
+                  detectSessionInUrl: true,
                 },
-              },
-            });
-            this.setupAuthListener();
-            this.setupNetworkListeners();
-            this.startSyncLoop();
-            console.log('[SupabaseService] Client initialized successfully');
-          } catch (error) {
-            console.error('[SupabaseService] Failed to initialize client:', error);
-            this.emitAuthFallback();
+                db: {
+                  schema: 'public',
+                },
+                realtime: {
+                  params: {
+                    eventsPerSecond: 10,
+                  },
+                },
+              });
+              this.setupAuthListener();
+              this.setupNetworkListeners();
+              this.startSyncLoop();
+              console.log('[SupabaseService] Client initialized successfully');
+            } catch (error) {
+              console.error('[SupabaseService] Failed to initialize client:', error);
+              this.emitAuthFallback();
           }
         } else {
           console.warn('[SupabaseService] No Supabase config - using demo mode');
